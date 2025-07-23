@@ -1,6 +1,5 @@
 import pandas as pd
 import math
-from pathlib import Path
 from typing import List, Tuple, Dict
 
 
@@ -13,20 +12,27 @@ class ColorPalette:
         self.histogram_color = "rgb(101,150,207)"
     
     def _load_categorical_colors(self) -> List[str]:
-        """Load categorical colors from CSV."""
-        colors_file = Path(__file__).parent.parent / "categorical.csv"
-        df = pd.read_csv(colors_file, header=None)
-        return [f"rgb({row.iloc[2]})" for _, row in df.iterrows()]
+        """Load categorical colors from embedded data."""
+        colors_data = [
+            "211, 89, 28",    # red
+            "236, 186, 102",  # yellow
+            "135, 175, 63",   # green
+            "88, 191, 172",   # teal
+            "101, 150, 207",  # blue
+            "202, 127, 204"   # purple
+        ]
+        return [f"rgb({color})" for color in colors_data]
     
     def _load_ramp_colors(self) -> Dict[str, List[str]]:
-        """Load color ramps from CSV."""
-        ramps_file = Path(__file__).parent.parent / "ramps.csv"
-        df = pd.read_csv(ramps_file, header=None)
+        """Load color ramps from embedded data."""
+        ramps_data = {
+            "Green-to-Blue": ["33, 89, 44", "135, 175, 63", "118, 163, 138", "101, 150, 207", "32, 105, 138"],
+            "Blues": ["9, 58, 81", "32, 105, 138", "101, 150, 207", "182, 204, 230", "217, 233, 252"],
+            "Greens": ["24, 60, 32", "33, 89, 44", "135, 175, 63", "196, 215, 163", "229, 243, 205"]
+        }
         ramps = {}
-        for _, row in df.iterrows():
-            name = row.iloc[0]  # First column is the ramp name
-            colors = [f"rgb({color})" for color in row.iloc[2:] if pd.notna(color)]
-            ramps[name] = colors
+        for name, colors in ramps_data.items():
+            ramps[name] = [f"rgb({color})" for color in colors]
         return ramps
     
     def get_categorical_color(self, index: int) -> str:
