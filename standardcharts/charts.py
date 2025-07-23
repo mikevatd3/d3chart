@@ -94,37 +94,52 @@ class BarChart(BaseChart):
         self._validate_data()
     
     def _validate_data(self):
-        """Validate that data has required columns."""
-        required_cols = ['id', 'category', 'value']
-        missing_cols = [col for col in required_cols if col not in self.data.columns]
-        if missing_cols:
-            raise ValueError(f"Missing required columns: {missing_cols}")
+        """Validate that data has the required number of columns."""
+        if len(self.data.columns) < 2:
+            raise ValueError(f"BarChart requires at least 2 columns, got {len(self.data.columns)}")
+        
+        # Assign column names based on position: category, then value columns
+        num_cols = len(self.data.columns)
+        value_col_names = [f'value_{i}' for i in range(num_cols - 1)]
+        self.data.columns = ['category'] + value_col_names
+        self.value_columns = value_col_names
     
     def generate(self) -> str:
-        """Generate bar chart SVG."""
+        """Generate stacked bar chart SVG."""
+        # Reserve space for legend
+        legend_width = 120
+        original_chart_width = self.chart_width
+        self.chart_width = original_chart_width - legend_width
+        
         svg_parts = [self._create_svg_header()]
         
-        # Group data by category and sum values
-        grouped = self.data.groupby('category')['value'].sum().reset_index()
+        # Group data by category and sum all value columns
+        grouped = self.data.groupby('category')[self.value_columns].sum().reset_index()
         
-        # Calculate scales
-        max_value = grouped['value'].max()
+        # Calculate total heights for each category
+        grouped['total'] = grouped[self.value_columns].sum(axis=1)
+        max_total = grouped['total'].max()
         categories = grouped['category'].tolist()
         
         # X scale (categories)
         bar_width = self.chart_width / len(categories)
         
         # Y scale (values)
-        y_scale = self.chart_height / max_value
+        y_scale = self.chart_height / max_total if max_total > 0 else 1
         
-        # Draw bars
+        # Draw stacked bars
         for i, (_, row) in enumerate(grouped.iterrows()):
             x = i * bar_width
-            bar_height = row['value'] * y_scale
-            y = self.chart_height - bar_height
-            color = self.colors.get_categorical_color(i)
+            current_y = self.chart_height
             
-            svg_parts.append(f'<rect x="{x + bar_width*0.1}" y="{y}" width="{bar_width*0.8}" height="{bar_height}" fill="{color}"/>')
+            # Draw each stack segment
+            for j, value_col in enumerate(self.value_columns):
+                segment_height = row[value_col] * y_scale
+                if segment_height > 0:
+                    current_y -= segment_height
+                    color = self.colors.get_categorical_color(j)
+                    
+                    svg_parts.append(f'<rect x="{x + bar_width*0.1}" y="{current_y}" width="{bar_width*0.8}" height="{segment_height}" fill="{color}"/>')
             
             # Add category label
             svg_parts.append(f'<text x="{x + bar_width/2}" y="{self.chart_height + 20}" text-anchor="middle">{row["category"]}</text>')
@@ -135,11 +150,28 @@ class BarChart(BaseChart):
         
         # Add Y-axis labels
         for i in range(5):
-            y_val = (max_value / 4) * i
-            y_pos = self.chart_height - (y_val * y_scale)
+            y_val = (max_total / 4) * i
+            y_pos = self.chart_height - (y_val * y_scale) if max_total > 0 else self.chart_height
             svg_parts.append(f'<text x="-10" y="{y_pos + 4}" text-anchor="end">{y_val:.0f}</text>')
             if i > 0:
                 svg_parts.append(f'<line x1="0" y1="{y_pos}" x2="{self.chart_width}" y2="{y_pos}" class="tick-line"/>')
+        
+        # Add legend
+        legend_x = self.chart_width + 20
+        legend_y = 20
+        
+        for j, value_col in enumerate(self.value_columns):
+            color = self.colors.get_categorical_color(j)
+            rect_y = legend_y + j * 20
+            
+            # Legend color box
+            svg_parts.append(f'<rect x="{legend_x}" y="{rect_y}" width="12" height="12" fill="{color}"/>')
+            
+            # Legend text
+            svg_parts.append(f'<text x="{legend_x + 18}" y="{rect_y + 9}" text-anchor="start">{value_col}</text>')
+        
+        # Restore original chart width
+        self.chart_width = original_chart_width
         
         svg_parts.append(self._create_svg_footer())
         return '\n'.join(svg_parts)
@@ -154,11 +186,12 @@ class Histogram(BaseChart):
         self._validate_data()
     
     def _validate_data(self):
-        """Validate that data has required columns."""
-        required_cols = ['id', 'value']
-        missing_cols = [col for col in required_cols if col not in self.data.columns]
-        if missing_cols:
-            raise ValueError(f"Missing required columns: {missing_cols}")
+        """Validate that data has the required number of columns."""
+        if len(self.data.columns) < 2:
+            raise ValueError(f"Histogram requires at least 2 columns, got {len(self.data.columns)}")
+        
+        # Assign column names based on position
+        self.data.columns = ['id', 'value'] + list(self.data.columns[2:])
     
     def generate(self) -> str:
         """Generate histogram SVG."""
@@ -212,11 +245,12 @@ class LineChart(BaseChart):
         self._validate_data()
     
     def _validate_data(self):
-        """Validate that data has required columns."""
-        required_cols = ['id', 'time', 'value']
-        missing_cols = [col for col in required_cols if col not in self.data.columns]
-        if missing_cols:
-            raise ValueError(f"Missing required columns: {missing_cols}")
+        """Validate that data has the required number of columns."""
+        if len(self.data.columns) < 3:
+            raise ValueError(f"LineChart requires at least 3 columns, got {len(self.data.columns)}")
+        
+        # Assign column names based on position
+        self.data.columns = ['id', 'time', 'value'] + list(self.data.columns[3:])
     
     def generate(self) -> str:
         """Generate line chart SVG."""
@@ -274,11 +308,12 @@ class DoughnutChart(BaseChart):
         self._validate_data()
     
     def _validate_data(self):
-        """Validate that data has required columns."""
-        required_cols = ['id', 'category', 'value']
-        missing_cols = [col for col in required_cols if col not in self.data.columns]
-        if missing_cols:
-            raise ValueError(f"Missing required columns: {missing_cols}")
+        """Validate that data has the required number of columns."""
+        if len(self.data.columns) < 2:
+            raise ValueError(f"DoughnutChart requires at least 2 columns, got {len(self.data.columns)}")
+        
+        # Assign column names based on position
+        self.data.columns = ['category', 'value'] + list(self.data.columns[2:])
     
     def generate(self) -> str:
         """Generate doughnut chart SVG."""
@@ -341,11 +376,12 @@ class HexbinChart(BaseChart):
         self._validate_data()
     
     def _validate_data(self):
-        """Validate that data has required columns."""
-        required_cols = ['id', 'independent', 'dependent']
-        missing_cols = [col for col in required_cols if col not in self.data.columns]
-        if missing_cols:
-            raise ValueError(f"Missing required columns: {missing_cols}")
+        """Validate that data has the required number of columns."""
+        if len(self.data.columns) < 3:
+            raise ValueError(f"HexbinChart requires at least 3 columns, got {len(self.data.columns)}")
+        
+        # Assign column names based on position
+        self.data.columns = ['id', 'independent', 'dependent'] + list(self.data.columns[3:])
     
     def generate(self) -> str:
         """Generate hexbin chart SVG."""
