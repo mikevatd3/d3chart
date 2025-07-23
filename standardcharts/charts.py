@@ -1,6 +1,6 @@
 import pandas as pd
 import math
-from typing import List, Tuple, Dict
+from typing import List, Dict
 
 
 class ColorPalette:
@@ -47,12 +47,14 @@ class ColorPalette:
 class BaseChart:
     """Base class for all chart types."""
     
-    def __init__(self, data: pd.DataFrame, width: int, height: int):
+    def __init__(self, data: pd.DataFrame, width: int, height: int, color_palette: str = None, color_ramp: str = None):
         self.data = data
         self.width = width
         self.height = height
         self.colors = ColorPalette()
-        self.margin = {"top": 20, "right": 20, "bottom": 40, "left": 60}
+        self.color_palette = color_palette
+        self.color_ramp = color_ramp or "Blues"
+        self.margin = {"top": 20, "right": 20, "bottom": 40, "left": 100}
         self.chart_width = width - self.margin["left"] - self.margin["right"]
         self.chart_height = height - self.margin["top"] - self.margin["bottom"]
     
@@ -89,14 +91,18 @@ class BaseChart:
 class BarChart(BaseChart):
     """Basic bar chart implementation."""
     
-    def __init__(self, data: pd.DataFrame, width: int, height: int):
-        super().__init__(data, width, height)
+    def __init__(self, data: pd.DataFrame, width: int, height: int, color_palette: str = None):
+        super().__init__(data, width, height, color_palette=color_palette)
         self._validate_data()
     
     def _validate_data(self):
         """Validate that data has the required number of columns."""
         if len(self.data.columns) < 2:
             raise ValueError(f"BarChart requires at least 2 columns, got {len(self.data.columns)}")
+        
+        # Store original column names for legend
+        original_columns = list(self.data.columns)
+        self.original_value_columns = original_columns[1:]  # All columns except first (category)
         
         # Assign column names based on position: category, then value columns
         num_cols = len(self.data.columns)
@@ -137,12 +143,19 @@ class BarChart(BaseChart):
                 segment_height = row[value_col] * y_scale
                 if segment_height > 0:
                     current_y -= segment_height
-                    color = self.colors.get_categorical_color(j)
+                    if self.color_palette and self.color_palette.startswith('rgb'):
+                        color = self.color_palette
+                    else:
+                        color = self.colors.get_categorical_color(j)
                     
                     svg_parts.append(f'<rect x="{x + bar_width*0.1}" y="{current_y}" width="{bar_width*0.8}" height="{segment_height}" fill="{color}"/>')
             
-            # Add category label
-            svg_parts.append(f'<text x="{x + bar_width/2}" y="{self.chart_height + 20}" text-anchor="middle">{row["category"]}</text>')
+            # Add category label with boundary clipping
+            label_x = max(0, min(x + bar_width/2, self.chart_width))
+            label_text = str(row["category"])
+            if len(label_text) > 10:
+                label_text = label_text[:8] + "..."
+            svg_parts.append(f'<text x="{label_x}" y="{self.chart_height + 20}" text-anchor="middle">{label_text}</text>')
         
         # Draw axes
         svg_parts.append(f'<line x1="0" y1="{self.chart_height}" x2="{self.chart_width}" y2="{self.chart_height}" class="axis-line"/>')
@@ -161,14 +174,18 @@ class BarChart(BaseChart):
         legend_y = 20
         
         for j, value_col in enumerate(self.value_columns):
-            color = self.colors.get_categorical_color(j)
+            if self.color_palette and self.color_palette.startswith('rgb'):
+                color = self.color_palette
+            else:
+                color = self.colors.get_categorical_color(j)
             rect_y = legend_y + j * 20
             
             # Legend color box
             svg_parts.append(f'<rect x="{legend_x}" y="{rect_y}" width="12" height="12" fill="{color}"/>')
             
-            # Legend text
-            svg_parts.append(f'<text x="{legend_x + 18}" y="{rect_y + 9}" text-anchor="start">{value_col}</text>')
+            # Legend text - use original column name
+            original_name = self.original_value_columns[j]
+            svg_parts.append(f'<text x="{legend_x + 18}" y="{rect_y + 9}" text-anchor="start">{original_name}</text>')
         
         # Restore original chart width
         self.chart_width = original_chart_width
@@ -180,8 +197,8 @@ class BarChart(BaseChart):
 class Histogram(BaseChart):
     """Histogram implementation."""
     
-    def __init__(self, data: pd.DataFrame, width: int, height: int, bins: int):
-        super().__init__(data, width, height)
+    def __init__(self, data: pd.DataFrame, width: int, height: int, bins: int, color: str = None):
+        super().__init__(data, width, height, color_palette=color)
         self.bins = bins
         self._validate_data()
     
@@ -213,7 +230,8 @@ class Histogram(BaseChart):
             bar_height = count * y_scale
             y = self.chart_height - bar_height
             
-            svg_parts.append(f'<rect x="{x}" y="{y}" width="{bin_width-1}" height="{bar_height}" fill="{self.colors.histogram_color}"/>')
+            fill_color = self.color_palette if self.color_palette else self.colors.histogram_color
+            svg_parts.append(f'<rect x="{x}" y="{y}" width="{bin_width-1}" height="{bar_height}" fill="{fill_color}"/>')
         
         # Draw axes
         svg_parts.append(f'<line x1="0" y1="{self.chart_height}" x2="{self.chart_width}" y2="{self.chart_height}" class="axis-line"/>')
@@ -240,8 +258,8 @@ class Histogram(BaseChart):
 class LineChart(BaseChart):
     """Line chart implementation."""
     
-    def __init__(self, data: pd.DataFrame, width: int, height: int):
-        super().__init__(data, width, height)
+    def __init__(self, data: pd.DataFrame, width: int, height: int, color_palette: str = None):
+        super().__init__(data, width, height, color_palette=color_palette)
         self._validate_data()
     
     def _validate_data(self):
@@ -270,7 +288,10 @@ class LineChart(BaseChart):
         
         # Draw lines for each group
         for i, (group_id, group_data) in enumerate(groups):
-            color = self.colors.get_categorical_color(i)
+            if self.color_palette and self.color_palette.startswith('rgb'):
+                color = self.color_palette
+            else:
+                color = self.colors.get_categorical_color(i)
             group_data = group_data.sort_values('time')
             
             points = []
@@ -303,8 +324,8 @@ class LineChart(BaseChart):
 class DoughnutChart(BaseChart):
     """Doughnut chart implementation."""
     
-    def __init__(self, data: pd.DataFrame, width: int, height: int):
-        super().__init__(data, width, height)
+    def __init__(self, data: pd.DataFrame, width: int, height: int, color_palette: str = None):
+        super().__init__(data, width, height, color_palette=color_palette)
         self._validate_data()
     
     def _validate_data(self):
@@ -333,7 +354,10 @@ class DoughnutChart(BaseChart):
         current_angle = 0
         for i, (_, row) in enumerate(grouped.iterrows()):
             angle = (row['value'] / total) * 2 * math.pi
-            color = self.colors.get_categorical_color(i)
+            if self.color_palette and self.color_palette.startswith('rgb'):
+                color = self.color_palette
+            else:
+                color = self.colors.get_categorical_color(i)
             
             # Calculate arc path
             start_x = center_x + radius * math.cos(current_angle)
@@ -371,8 +395,8 @@ class DoughnutChart(BaseChart):
 class HexbinChart(BaseChart):
     """Hexbin chart implementation."""
     
-    def __init__(self, data: pd.DataFrame, width: int, height: int):
-        super().__init__(data, width, height)
+    def __init__(self, data: pd.DataFrame, width: int, height: int, color_ramp: str = None):
+        super().__init__(data, width, height, color_ramp=color_ramp)
         self._validate_data()
     
     def _validate_data(self):
@@ -416,7 +440,7 @@ class HexbinChart(BaseChart):
             return '\n'.join(svg_parts)
         
         max_count = max(hex_counts.values())
-        colors = self.colors.get_ramp_colors("Blues")
+        colors = self.colors.get_ramp_colors(self.color_ramp)
         
         # Draw hexagons
         for (col, row), count in hex_counts.items():

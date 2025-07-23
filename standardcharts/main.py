@@ -17,10 +17,11 @@ def cli():
 @click.option('--output', '-o', help='Output SVG filename')
 @click.option('--width', default=800, help='Chart width in pixels')
 @click.option('--height', default=600, help='Chart height in pixels')
-def bar(filename, output, width, height):
+@click.option('--color', help='Custom color (e.g., "rgb(255,100,50)")')
+def bar(filename, output, width, height, color):
     """Create a basic bar chart (requires: id, category, value columns)."""
     data = _read_csv_data(filename)
-    chart = BarChart(data, width, height)
+    chart = BarChart(data, width, height, color_palette=color)
     svg_content = chart.generate()
     _write_output(svg_content, output, filename, 'bar')
 
@@ -31,10 +32,11 @@ def bar(filename, output, width, height):
 @click.option('--width', default=800, help='Chart width in pixels')
 @click.option('--height', default=600, help='Chart height in pixels')
 @click.option('--bins', default=20, help='Number of histogram bins')
-def histogram(filename, output, width, height, bins):
+@click.option('--color', help='Custom color (e.g., "rgb(100,200,100)")')
+def histogram(filename, output, width, height, bins, color):
     """Create a histogram (requires: id, value columns)."""
     data = _read_csv_data(filename)
-    chart = Histogram(data, width, height, bins)
+    chart = Histogram(data, width, height, bins, color=color)
     svg_content = chart.generate()
     _write_output(svg_content, output, filename, 'histogram')
 
@@ -44,10 +46,11 @@ def histogram(filename, output, width, height, bins):
 @click.option('--output', '-o', help='Output SVG filename')
 @click.option('--width', default=800, help='Chart width in pixels')
 @click.option('--height', default=600, help='Chart height in pixels')
-def line(filename, output, width, height):
+@click.option('--color', help='Custom color (e.g., "rgb(255,0,0)")')
+def line(filename, output, width, height, color):
     """Create a line chart (requires: id, time, value columns)."""
     data = _read_csv_data(filename)
-    chart = LineChart(data, width, height)
+    chart = LineChart(data, width, height, color_palette=color)
     svg_content = chart.generate()
     _write_output(svg_content, output, filename, 'line')
 
@@ -57,10 +60,11 @@ def line(filename, output, width, height):
 @click.option('--output', '-o', help='Output SVG filename')
 @click.option('--width', default=800, help='Chart width in pixels')
 @click.option('--height', default=600, help='Chart height in pixels')
-def doughnut(filename, output, width, height):
+@click.option('--color', help='Custom color (e.g., "rgb(200,100,200)")')
+def doughnut(filename, output, width, height, color):
     """Create a doughnut chart (requires: id, category, value columns)."""
     data = _read_csv_data(filename)
-    chart = DoughnutChart(data, width, height)
+    chart = DoughnutChart(data, width, height, color_palette=color)
     svg_content = chart.generate()
     _write_output(svg_content, output, filename, 'doughnut')
 
@@ -70,10 +74,11 @@ def doughnut(filename, output, width, height):
 @click.option('--output', '-o', help='Output SVG filename')
 @click.option('--width', default=800, help='Chart width in pixels')
 @click.option('--height', default=600, help='Chart height in pixels')
-def hexbin(filename, output, width, height):
+@click.option('--color-ramp', default='Blues', help='Color ramp: Blues, Greens, Green-to-Blue')
+def hexbin(filename, output, width, height, color_ramp):
     """Create a hexbin chart (requires: id, independent, dependent columns)."""
     data = _read_csv_data(filename)
-    chart = HexbinChart(data, width, height)
+    chart = HexbinChart(data, width, height, color_ramp=color_ramp)
     svg_content = chart.generate()
     _write_output(svg_content, output, filename, 'hexbin')
 
