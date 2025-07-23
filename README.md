@@ -5,7 +5,7 @@ D3-style chart maker CLI tool for generating SVG charts from CSV data.
 ## Installation
 
 ```bash
-pip install .
+uv tool install https://github.com/mikevatd3/d3chart.git
 ```
 
 ## Usage
