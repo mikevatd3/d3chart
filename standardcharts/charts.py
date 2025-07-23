@@ -1,5 +1,6 @@
 import pandas as pd
 import math
+import re
 from typing import List, Dict
 
 
@@ -10,6 +11,19 @@ class ColorPalette:
         self.categorical_colors = self._load_categorical_colors()
         self.ramp_colors = self._load_ramp_colors()
         self.histogram_color = "rgb(101,150,207)"
+    
+    @staticmethod
+    def rgb_to_hex(rgb_string: str) -> str:
+        """Convert RGB string like 'rgb(255, 0, 0)' to hex format '#ff0000'."""
+        match = re.match(r'rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)', rgb_string)
+        if not match:
+            raise ValueError(f"Invalid RGB format: {rgb_string}")
+        
+        r, g, b = map(int, match.groups())
+        if not all(0 <= val <= 255 for val in [r, g, b]):
+            raise ValueError(f"RGB values must be between 0 and 255: {rgb_string}")
+        
+        return f"#{r:02x}{g:02x}{b:02x}"
     
     def _load_categorical_colors(self) -> List[str]:
         """Load categorical colors from embedded data."""
@@ -39,9 +53,23 @@ class ColorPalette:
         """Get categorical color by index (cycles through available colors)."""
         return self.categorical_colors[index % len(self.categorical_colors)]
     
+    def get_categorical_color_hex(self, index: int) -> str:
+        """Get categorical color in hex format by index (cycles through available colors)."""
+        rgb_color = self.get_categorical_color(index)
+        return self.rgb_to_hex(rgb_color)
+    
     def get_ramp_colors(self, ramp_name: str = "Blues") -> List[str]:
         """Get color ramp for continuous data."""
         return self.ramp_colors.get(ramp_name, self.ramp_colors["Blues"])
+    
+    def get_ramp_colors_hex(self, ramp_name: str = "Blues") -> List[str]:
+        """Get color ramp in hex format for continuous data."""
+        rgb_colors = self.get_ramp_colors(ramp_name)
+        return [self.rgb_to_hex(color) for color in rgb_colors]
+    
+    def get_histogram_color_hex(self) -> str:
+        """Get histogram color in hex format."""
+        return self.rgb_to_hex(self.histogram_color)
 
 
 class BaseChart:
