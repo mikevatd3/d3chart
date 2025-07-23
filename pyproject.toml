@@ -1,6 +1,6 @@
 [project]
 name = "standardcharts"
-version = "0.3.1"
+version = "0.3.2"
 description = "D3-style chart maker CLI tool for generating SVG charts from CSV data"
 readme = "README.md"
 requires-python = ">=3.13"

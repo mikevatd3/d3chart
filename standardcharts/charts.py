@@ -467,29 +467,37 @@ class HexbinChart(BaseChart):
             svg_parts.append(self._create_svg_footer())
             return '\n'.join(svg_parts)
         
-        max_count = max(hex_counts.values())
+        max_count = max(hex_counts.values()) if hex_counts else 1
         colors = self.colors.get_ramp_colors(self.color_ramp)
+        background_color = colors[-1]  # Use last color (lightest/0-value color) for background
         
-        # Draw hexagons
-        for (col, row), count in hex_counts.items():
-            x = col * hex_size * 1.5
-            y = row * hex_size * math.sqrt(3)
-            if col % 2 == 1:
-                y += hex_size * math.sqrt(3) / 2
-            
-            # Color based on count
-            color_idx = min(int((count / max_count) * (len(colors) - 1)), len(colors) - 1)
-            color = colors[color_idx]
-            
-            # Create hexagon path
-            points = []
-            for i in range(6):
-                angle = i * math.pi / 3
-                px = x + hex_size * math.cos(angle)
-                py = y + hex_size * math.sin(angle)
-                points.append(f"{px},{py}")
-            
-            svg_parts.append(f'<polygon points="{" ".join(points)}" fill="{color}" stroke="white" stroke-width="0.5"/>')
+        # Draw all hexagons in the grid (including empty ones)
+        for col in range(hex_cols):
+            for row in range(hex_rows):
+                x = col * hex_size * 1.5
+                y = row * hex_size * math.sqrt(3)
+                if col % 2 == 1:
+                    y += hex_size * math.sqrt(3) / 2
+                
+                # Get count for this hexagon (0 if empty)
+                count = hex_counts.get((col, row), 0)
+                
+                # Color based on count (empty hexagons get background color)
+                if count == 0:
+                    color = background_color
+                else:
+                    color_idx = min(int((count / max_count) * (len(colors) - 1)), len(colors) - 1)
+                    color = colors[color_idx]
+                
+                # Create hexagon path
+                points = []
+                for i in range(6):
+                    angle = i * math.pi / 3
+                    px = x + hex_size * math.cos(angle)
+                    py = y + hex_size * math.sin(angle)
+                    points.append(f"{px},{py}")
+                
+                svg_parts.append(f'<polygon points="{" ".join(points)}" fill="{color}" stroke="white" stroke-width="0.5"/>')
         
         # Draw axes
         svg_parts.append(f'<line x1="0" y1="{self.chart_height}" x2="{self.chart_width}" y2="{self.chart_height}" class="axis-line"/>')
